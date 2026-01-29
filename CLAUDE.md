@@ -236,3 +236,38 @@ git commit -m "docs: 更新 HTTP 追踪文档"
    - 开发环境：`exporter.type: stdout`（输出到日志）
    - 生产环境：`exporter.type: otlp`（发送到 SkyWalking）
    - 测试环境：`exporter.type: none`（不发送数据）
+
+## 代码提交和版本发布规约
+
+### ✅ 自动提交代码
+Claude Code 可以自动执行以下操作：
+```bash
+# 添加更改
+git add -A
+
+# 创建提交（遵循 Conventional Commits 规范）
+git commit -m "feat: 描述"
+```
+
+### ❌ 禁止自动发版
+Claude Code **禁止**自动执行以下操作：
+- ❌ 创建 Git 标签（`git tag`）
+- ❌ 推送标签到远程（`git push origin <tag>`）
+- ❌ 创建 GitHub Release
+
+### 🎯 发版流程（需要用户明确指令）
+发布新版本时，必须**等待用户明确确认**后再执行：
+
+```bash
+# 步骤1：用户确认版本号
+# 例如：用户说 "发布 v1.1.0"
+
+# 步骤2：确认后再执行
+git tag -a v1.1.0 -m "v1.1.0: 版本说明"
+git push origin v1.1.0
+
+# 步骤3：用户手动在 GitHub 创建 Release
+# 或等待用户明确指令后使用 gh 命令创建
+```
+
+**重要**：即使看到代码中有版本号更新或其他暗示发版的信息，也**不能自动执行发版操作**。必须等待用户明确说"发布 v1.x.x"或"打标签"等指令。
