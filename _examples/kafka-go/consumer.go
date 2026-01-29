@@ -6,11 +6,12 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
-	"github.com/IBM/sarama"
+	"github.com/segmentio/kafka-go"
 	"github.com/zlxdbj/zllog"
 	"github.com/zlxdbj/zltrace"
-	"github.com/zlxdbj/zltrace/tracer/saramatracer"
+	"github.com/zlxdbj/zltrace/tracer/kafkagotracer"
 )
 
 func main() {
@@ -29,53 +30,52 @@ func main() {
 		}
 	}()
 
-	// 3. 创建 Kafka 消费者配置
-	config := sarama.NewConfig()
-	config.Consumer.Return.Errors = true
+	// 3. 创建 Kafka Reader
+	r := kafka.NewReader(kafka.ReaderConfig{
+		Brokers:  []string{"localhost:9092"},
+		GroupID:  "consumer-group-1",
+		Topic:    "test-topic",
+		MinBytes: 10e3, // 10KB
+		MaxBytes: 10e6, // 10MB
+	})
+	defer r.Close()
 
-	// 4. 创建消费者
-	consumer, err := sarama.NewConsumer([]string{"localhost:9092"}, config)
-	if err != nil {
-		panic("创建 Kafka 消费者失败: " + err.Error())
-	}
-	defer consumer.Close()
-
-	// 5. 订阅主题
-	partitionConsumer, err := consumer.ConsumePartition("test-topic", 0, sarama.OffsetNewest)
-	if err != nil {
-		panic("订阅主题失败: " + err.Error())
-	}
-	defer partitionConsumer.Close()
-
-	// 6. 处理信号
+	// 4. 处理信号
 	sigterm := make(chan os.Signal, 1)
 	signal.Notify(sigterm, syscall.SIGINT, syscall.SIGTERM)
 
 	fmt.Println("Consumer started, waiting for messages...")
 
-	// 7. 消费消息
+	// 5. 消费消息
 	for {
 		select {
-		case msg := <-partitionConsumer.Messages():
-			// 处理消息（从消息中提取 trace_id）
-			if err := handleMessage(msg); err != nil {
-				zllog.Error(context.Background(), "consumer", "Failed to handle message", err)
-			}
-
-		case err := <-partitionConsumer.Errors():
-			zllog.Error(context.Background(), "consumer", "Kafka consumer error", err)
-
 		case <-sigterm:
 			fmt.Println("\nReceived shutdown signal, exiting...")
 			return
+
+		default:
+			// 读取消息（带超时）
+			ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+			msg, err := r.ReadMessage(ctx)
+			cancel()
+
+			if err != nil {
+				// 超时或其他错误，继续循环
+				continue
+			}
+
+			// 处理消息（从消息中提取 trace_id）
+			if err := handleMessage(&msg); err != nil {
+				zllog.Error(context.Background(), "consumer", "Failed to handle message", err)
+			}
 		}
 	}
 }
 
 // handleMessage 处理 Kafka 消息（演示 trace_id 提取）
-func handleMessage(msg *sarama.ConsumerMessage) error {
+func handleMessage(msg *kafka.Message) error {
 	// 从消息中提取 trace_id（关键步骤！）
-	ctx := saramatrace.CreateKafkaConsumerContext(msg)
+	ctx := kafkagotracer.CreateKafkaConsumerContext(msg)
 
 	// 创建子 span
 	span, ctx := zltrace.GetSafeTracer().StartSpan(ctx, "HandleMessage")
@@ -89,9 +89,9 @@ func handleMessage(msg *sarama.ConsumerMessage) error {
 	// 业务逻辑处理
 	zllog.Info(ctx, "consumer", "Received message from Kafka",
 		zllog.String("topic", msg.Topic),
-		zllog.Int64("partition", int64(msg.Partition)),
+		zllog.Int("partition", msg.Partition),
 		zllog.Int64("offset", msg.Offset),
-		zllog.String("value", string(msg.Value)),
+		zllog.Int("bytes", len(msg.Value)),
 		zllog.String("trace_id", getTraceID(ctx)))
 
 	// 处理消息内容...
@@ -99,13 +99,16 @@ func handleMessage(msg *sarama.ConsumerMessage) error {
 }
 
 // processMessage 处理消息内容
-func processMessage(ctx context.Context, msg *sarama.ConsumerMessage) error {
+func processMessage(ctx context.Context, msg *kafka.Message) error {
 	// 创建子 span
 	span, ctx := zltrace.GetSafeTracer().StartSpan(ctx, "ProcessMessage")
 	defer span.Finish()
 
 	// 这里添加你的业务逻辑
 	// 例如：解析 JSON、写入数据库等
+
+	zllog.Info(ctx, "consumer", "Message processed successfully",
+		zllog.String("value", string(msg.Value)))
 
 	return nil
 }

@@ -9,7 +9,7 @@ import (
 	"github.com/zlxdbj/zllog"
 	"github.com/zlxdbj/zltrace"
 	"github.com/zlxdbj/zltrace/adapter/httpadapter"
-	"github.com/zlxdbj/zltrace/tracer/httptrace"
+	"github.com/zlxdbj/zltrace/tracer/httptracer"
 )
 
 func main() {

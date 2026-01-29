@@ -1,4 +1,4 @@
-package httptrace
+package httptracer
 
 import (
 	"context"

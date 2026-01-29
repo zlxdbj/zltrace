@@ -3,11 +3,12 @@ package main
 import (
 	"context"
 	"fmt"
+	"time"
 
-	"github.com/IBM/sarama"
+	"github.com/segmentio/kafka-go"
 	"github.com/zlxdbj/zllog"
 	"github.com/zlxdbj/zltrace"
-	"github.com/zlxdbj/zltrace/tracer/saramatracer"
+	"github.com/zlxdbj/zltrace/tracer/kafkagotracer"
 )
 
 func main() {
@@ -26,45 +27,38 @@ func main() {
 		}
 	}()
 
-	// 3. 创建 Kafka 生产者配置
-	config := sarama.NewConfig()
-	config.Producer.RequiredAcks = sarama.WaitForAll
-	config.Producer.Retry.Max = 3
-	config.Producer.Return.Successes = true
-
-	// 4. 创建生产者
-	producer, err := sarama.NewSyncProducer([]string{"localhost:9092"}, config)
-	if err != nil {
-		panic("创建 Kafka 生产者失败: " + err.Error())
+	// 3. 创建 Kafka Writer
+	writer := &kafka.Writer{
+		Addr:     kafka.TCP("localhost:9092"),
+		Topic:    "test-topic",
+		Balancer: &kafka.LeastBytes{},
 	}
-	defer producer.Close()
+	defer writer.Close()
 
-	// 5. 发送消息
+	// 4. 发送消息
 	ctx := context.Background()
-	if err := sendMessage(ctx, producer); err != nil {
+	if err := sendMessage(ctx, writer); err != nil {
 		zllog.Error(ctx, "example", "Failed to send message", err)
 	}
 }
 
 // sendMessage 发送消息到 Kafka（演示 trace_id 注入）
-func sendMessage(ctx context.Context, producer sarama.SyncProducer) error {
+func sendMessage(ctx context.Context, writer *kafka.Writer) error {
 	// 创建子 span
 	span, ctx := zltrace.GetSafeTracer().StartSpan(ctx, "SendMessage")
 	defer span.Finish()
 
 	// 准备消息
-	msg := &sarama.ProducerMessage{
-		Topic: "test-topic",
-		Key:   sarama.StringEncoder("key1"),
-		Value: sarama.StringEncoder(`{"message": "Hello, Kafka!"}`),
+	msg := kafka.Message{
+		Key:   []byte("key1"),
+		Value: []byte(`{"message": "Hello, Kafka-Go!"}`),
 	}
 
 	// 注入 trace_id 到消息 headers（关键步骤！）
-	ctx = saramatrace.InjectKafkaProducerHeaders(ctx, msg)
+	ctx = kafkagotracer.InjectKafkaProducerHeaders(ctx, &msg)
 
 	// 发送消息
-	partition, offset, err := producer.SendMessage(msg)
-	if err != nil {
+	if err := writer.WriteMessages(ctx, msg); err != nil {
 		span.SetError(err)
 		return fmt.Errorf("发送消息失败: %w", err)
 	}
@@ -72,8 +66,7 @@ func sendMessage(ctx context.Context, producer sarama.SyncProducer) error {
 	// 记录成功
 	zllog.Info(ctx, "example", "Message sent to Kafka",
 		zllog.String("topic", msg.Topic),
-		zllog.Int64("partition", int64(partition)),
-		zllog.Int64("offset", offset))
+		zllog.Int("bytes", len(msg.Value)))
 
 	return nil
 }
