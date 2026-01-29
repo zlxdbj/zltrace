@@ -22,7 +22,11 @@ jobs:
           go-version: ${{ matrix.go-version }}
 
       - name: Install dependencies
-        run: go mod download
+        run: |
+          # 修复 go.mod 版本格式兼容性问题
+          sed -i '3d' go.mod
+          sed -i 's/^go 1\.[0-9]*\.[0-9]*$/go 1.21/' go.mod
+          go mod download
 
       - name: Run tests
         run: go test -v -race -coverprofile=coverage.out ./...
