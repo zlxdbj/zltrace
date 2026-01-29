@@ -32,7 +32,7 @@ func main() {
 	r := gin.Default()
 
 	// 4. 添加追踪中间件
-	r.Use(httptrace.TraceMiddleware())
+	r.Use(httptracer.TraceMiddleware())
 
 	// 5. 注册路由
 	r.GET("/api/hello", handleHello)

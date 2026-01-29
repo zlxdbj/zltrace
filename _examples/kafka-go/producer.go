@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/segmentio/kafka-go"
 	"github.com/zlxdbj/zllog"
