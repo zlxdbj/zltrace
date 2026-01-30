@@ -1,4 +1,4 @@
-package saramatrace
+package saramatracer
 
 import (
 	"context"

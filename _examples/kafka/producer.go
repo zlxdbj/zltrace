@@ -60,7 +60,7 @@ func sendMessage(ctx context.Context, producer sarama.SyncProducer) error {
 	}
 
 	// 注入 trace_id 到消息 headers（关键步骤！）
-	ctx = saramatrace.InjectKafkaProducerHeaders(ctx, msg)
+	ctx = saramatracer.InjectKafkaProducerHeaders(ctx, msg)
 
 	// 发送消息
 	partition, offset, err := producer.SendMessage(msg)

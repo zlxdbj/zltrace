@@ -75,7 +75,7 @@ func main() {
 // handleMessage 处理 Kafka 消息（演示 trace_id 提取）
 func handleMessage(msg *sarama.ConsumerMessage) error {
 	// 从消息中提取 trace_id（关键步骤！）
-	ctx := saramatrace.CreateKafkaConsumerContext(msg)
+	ctx := saramatracer.CreateKafkaConsumerContext(msg)
 
 	// 【可选】创建 Span 用于追踪消息处理操作
 	// 如果不需要追踪这个操作本身，可以不创建 Span
