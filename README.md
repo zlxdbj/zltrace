@@ -95,7 +95,7 @@ processMessage(ctx, msg)
 - 📨 [Kafka 追踪](./docs/kafka-tracing.md) - Kafka 消息队列追踪
 - 📚 [API 参考](./docs/api-reference.md) - 完整的 API 文档
 - 💡 [最佳实践](./docs/best-practices.md) - 生产环境使用建议
-- ❓ [常见问题](./docs/faq.md) - FAQ 和问题排查
+- ❓ [常见问题](./docs/faq.md) - FAQ 和问题排查（**[是否必须创建 Span？](./docs/faq.md#q1-是否必须创建-span)**）
 - 🏗️ [架构设计](./docs/architecture.md) - 技术架构说明
 
 ## 💡 为什么选择 zltrace？

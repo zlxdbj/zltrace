@@ -2,7 +2,58 @@
 
 ## 基础问题
 
-### Q1: 为什么需要传递 context.Context？
+### Q1: 是否必须创建 Span？
+
+**不是必须的。** 创建 Span 取决于你的需求：
+
+#### 何时需要创建 Span
+
+- ✅ 需要追踪这个操作的**耗时**和**执行情况**
+- ✅ 需要在 SkyWalking/Jaeger 中看到这个操作作为独立的调用节点
+- ✅ 需要记录业务标签、错误信息等
+- ✅ 想建立清晰的调用层次结构
+
+```go
+// 需要追踪"处理消息"这个操作
+span, ctx := zltrace.GetSafeTracer().StartSpan(ctx, "HandleMessage")
+defer span.Finish()
+
+err := processBusiness(ctx)
+if err != nil {
+    span.SetError(err)  // 记录错误
+}
+span.SetTag("message_id", msg.ID)  // 记录业务标签
+```
+
+#### 何时不创建 Span
+
+- ❌ 只是简单传递 trace_id 给下游调用
+- ❌ 操作太简单，不值得单独追踪（如简单的数据转换）
+- ❌ 只想保证日志中有 trace_id（zltrace 已经自动注入）
+
+```go
+// 不创建 Span，直接传递 ctx
+func handleMessage(ctx context.Context, msg *Message) error {
+    // 直接调用下游，下游会创建自己的 Span
+    return callDownstreamService(ctx, msg)
+}
+```
+
+#### 关键区别
+
+| 方面 | 创建 Span | 不创建 Span |
+|------|----------|-------------|
+| trace_id 传递 | ✅ 自动传递 | ✅ 自动传递 |
+| 日志 trace_id | ✅ 自动注入 | ✅ 自动注入 |
+| 追踪系统可见 | ✅ 显示为节点 | ❌ 不可见 |
+| 耗时统计 | ✅ 记录耗时 | ❌ 无记录 |
+| 标签/错误 | ✅ 可添加 | ❌ 不可添加 |
+
+**重要**：Context 本身就携带 trace_id，创建 Span 是为了在追踪系统中"记录"这个操作。如果不需要追踪这个操作本身，不创建 Span 完全没问题。
+
+---
+
+### Q2: 为什么需要传递 context.Context？
 
 **常见疑问**：为什么每个函数都要传 `context.Context`？这样不是让代码变复杂了吗？
 
@@ -40,7 +91,7 @@ func ProcessData(ctx context.Context) error {
 
 **结论**：传递 context 是 **Go 语言的规约**，也是 **分布式系统的标准做法**。生产环境的可观测性比开发便利性更重要。
 
-### Q2: Exporter 类型如何选择？
+### Q3: Exporter 类型如何选择？
 
 | 场景 | 推荐类型 | 说明 |
 |------|----------|------|
@@ -51,7 +102,7 @@ func ProcessData(ctx context.Context) error {
 
 **降级策略**：当 SkyWalking 不可用时，可临时切换到 `stdout` 模式。
 
-### Q3: 如何查看追踪数据？
+### Q4: 如何查看追踪数据？
 
 **方式1：stdout 模式**
 
@@ -72,7 +123,7 @@ tail -f logs/app.log | grep trace_id
    - 调用链路（Trace）
    - 性能指标（响应时间、吞吐量）
 
-### Q4: 性能开销如何？
+### Q5: 性能开销如何？
 
 zltrace 的性能开销非常小：
 
@@ -88,7 +139,7 @@ zltrace 的性能开销非常小：
 - 生产环境使用 `otlp` 批量发送
 - 高并发场景合理设置采样率
 
-### Q5: 如何调试追踪问题？
+### Q6: 如何调试追踪问题？
 
 **启用 stdout 模式**：
 ```yaml
@@ -115,7 +166,7 @@ zllog.Info(ctx, "debug", "trace_id check",
 )
 ```
 
-### Q6: 如何禁用追踪？
+### Q7: 如何禁用追踪？
 
 **方式1：配置文件**
 ```yaml
@@ -135,7 +186,7 @@ trace:
     type: none  # 不发送追踪数据
 ```
 
-### Q7: 与 zllog 如何集成？
+### Q8: 与 zllog 如何集成？
 
 zltrace 通过 `TraceIDProvider` 接口与 zllog 解耦：
 
@@ -168,7 +219,7 @@ zllog.Info(ctx, "module", "message")
 
 ## 配置问题
 
-### Q8: 配置文件找不到怎么办？
+### Q9: 配置文件找不到怎么办？
 
 **查找顺序**：
 1. `./zltrace.yaml`
@@ -188,7 +239,7 @@ export ZLTRACE_CONFIG=/path/to/zltrace.yaml
 sudo cp zltrace.yaml /etc/zltrace/config.yaml
 ```
 
-### Q9: 如何覆盖服务名称？
+### Q10: 如何覆盖服务名称？
 
 **优先级**：环境变量 > 配置文件 > 默认值
 
@@ -204,7 +255,7 @@ export APP_NAME=my_app
 #   service_name: my_service
 ```
 
-### Q10: 采样率如何设置？
+### Q11: 采样率如何设置？
 
 **开发环境**：
 ```yaml
@@ -228,7 +279,7 @@ sampler:
 
 ## 集成问题
 
-### Q11: 如何与现有代码集成？
+### Q12: 如何与现有代码集成？
 
 **渐进式集成**：
 ```go
@@ -253,13 +304,13 @@ func everyFunction(ctx context.Context) {
 }
 ```
 
-### Q12: 支持哪些 Go 版本？
+### Q13: 支持哪些 Go 版本？
 
 - **最低版本**：Go 1.19
 - **推荐版本**：Go 1.21+
 - **测试覆盖**：Go 1.19, 1.20, 1.21
 
-### Q13: 支持哪些框架？
+### Q14: 支持哪些框架？
 
 **HTTP 框架**：
 - ✅ Gin（开箱即用）
@@ -273,7 +324,7 @@ func everyFunction(ctx context.Context) {
 - 🚧 RabbitMQ（计划中）
 - 🚧 RocketMQ（计划中）
 
-### Q14: 如何适配其他框架？
+### Q15: 如何适配其他框架？
 
 参考 Gin 的实现：
 
@@ -311,7 +362,7 @@ func MyMiddleware(h *MyFrameworkHandler, next func()) {
 
 ## 故障排查
 
-### Q15: 追踪系统故障会影响业务吗？
+### Q16: 追踪系统故障会影响业务吗？
 
 **不会**。zltrace 采用优雅降级设计：
 
@@ -322,7 +373,7 @@ defer span.Finish()
 // 业务代码继续正常运行
 ```
 
-### Q16: trace_id 丢失怎么办？
+### Q17: trace_id 丢失怎么办？
 
 **检查清单**：
 1. ✅ 确认中间件已添加
@@ -338,7 +389,7 @@ zllog.Info(ctx, "debug", "trace_id",
     zllog.String("trace_id", getTraceID(ctx)))
 ```
 
-### Q17: 内存泄漏怎么办？
+### Q18: 内存泄漏怎么办？
 
 **检查项**：
 1. ✅ 确认调用了 `span.Finish()`
@@ -358,15 +409,15 @@ func processOrder(ctx context.Context) error {
 
 ## 其他问题
 
-### Q18: 开源协议是什么？
+### Q19: 开源协议是什么？
 
 采用 **MIT License**，允许商业使用。
 
-### Q19: 如何贡献代码？
+### Q20: 如何贡献代码？
 
 请参考[贡献指南](../CONTRIBUTING.md)。
 
-### Q20: 如何获取帮助？
+### Q21: 如何获取帮助？
 
 - 📖 查看[文档](./index.md)
 - 💡 查看[示例代码](../_examples/)

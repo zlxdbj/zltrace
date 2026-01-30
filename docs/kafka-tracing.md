@@ -49,6 +49,11 @@ func consumeMessage(msg *sarama.ConsumerMessage) error {
     // 从消息中提取 trace_id
     ctx := saramatracer.CreateKafkaConsumerContext(msg)
 
+    // 【可选】创建 Span 用于追踪消息处理操作
+    // 如果不需要追踪这个操作本身，可以不创建 Span
+    // span, ctx := zltrace.GetSafeTracer().StartSpan(ctx, "ConsumeMessage")
+    // defer span.Finish()
+
     // 后续所有操作都继承这个 trace_id
     return processMessage(ctx, msg)
 }
@@ -156,8 +161,12 @@ func main() {
     for {
         select {
         case msg := <-partitionConsumer.Messages():
-            // 提取 trace_id
+            // 提取 trace_id（必须）
             ctx := saramatracer.CreateKafkaConsumerContext(msg)
+
+            // 【可选】创建 Span - 如果不需要追踪这个操作，可以不创建
+            // span, ctx := zltrace.GetSafeTracer().StartSpan(ctx, "ConsumeMessage")
+            // defer span.Finish()
 
             // 处理消息
             zllog.Info(ctx, "consumer", "收到消息",
@@ -214,6 +223,11 @@ import (
 func consumeMessage(msg *kafka.Message) error {
     // 提取 trace_id
     ctx := kafkagotracer.CreateKafkaConsumerContext(msg)
+
+    // 【可选】创建 Span 用于追踪消息处理操作
+    // 如果不需要追踪这个操作本身，可以不创建 Span
+    // span, ctx := zltrace.GetSafeTracer().StartSpan(ctx, "ConsumeMessage")
+    // defer span.Finish()
 
     // 处理消息
     return processMessage(ctx, msg)
@@ -321,8 +335,12 @@ func main() {
                 continue
             }
 
-            // 提取 trace_id
+            // 提取 trace_id（必须）
             ctx = kafkagotracer.CreateKafkaConsumerContext(&msg)
+
+            // 【可选】创建 Span - 如果不需要追踪这个操作，可以不创建
+            // span, ctx := zltrace.GetSafeTracer().StartSpan(ctx, "ConsumeMessage")
+            // defer span.Finish()
 
             // 处理消息
             zllog.Info(ctx, "consumer", "收到消息",

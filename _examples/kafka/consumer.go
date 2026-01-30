@@ -77,7 +77,10 @@ func handleMessage(msg *sarama.ConsumerMessage) error {
 	// 从消息中提取 trace_id（关键步骤！）
 	ctx := saramatrace.CreateKafkaConsumerContext(msg)
 
-	// 创建子 span
+	// 【可选】创建 Span 用于追踪消息处理操作
+	// 如果不需要追踪这个操作本身，可以不创建 Span
+	// trace_id 已经在 ctx 中，会自动传递给下游调用
+	// 详见：https://github.com/zlxdbj/zltrace/blob/main/docs/faq.md#q1-是否必须创建-span
 	span, ctx := zltrace.GetSafeTracer().StartSpan(ctx, "HandleMessage")
 	defer span.Finish()
 
@@ -100,7 +103,8 @@ func handleMessage(msg *sarama.ConsumerMessage) error {
 
 // processMessage 处理消息内容
 func processMessage(ctx context.Context, msg *sarama.ConsumerMessage) error {
-	// 创建子 span
+	// 【可选】创建子 Span
+	// 如果不需要追踪这个操作，可以不创建 Span，直接传递 ctx 即可
 	span, ctx := zltrace.GetSafeTracer().StartSpan(ctx, "ProcessMessage")
 	defer span.Finish()
 

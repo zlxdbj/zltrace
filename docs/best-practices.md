@@ -29,7 +29,149 @@ func ProcessOrder(orderID string) error {
 }
 ```
 
-## 2. Span 命名规范
+## 2. 何时创建 Span
+
+创建 Span 是**可选的**，取决于你的具体需求。
+
+### 需要创建 Span 的场景
+
+- ✅ 追踪**重要业务操作**的耗时（如订单处理、支付流程）
+- ✅ 需要在追踪系统中看到调用层次结构
+- ✅ 需要记录业务标签（订单ID、用户ID等）
+- ✅ 需要记录错误信息和异常情况
+- ✅ 性能分析和优化
+
+```go
+// 示例：追踪重要的业务操作
+func ProcessOrder(ctx context.Context, orderID string) error {
+    // 创建 Span 记录这个操作
+    span, ctx := zltrace.GetSafeTracer().StartSpan(ctx, "ProcessOrder")
+    defer span.Finish()
+
+    // 记录业务标签
+    span.SetTag("order_id", orderID)
+    span.SetTag("user_id", getUserID(ctx))
+
+    // 业务逻辑
+    if err := validateOrder(ctx, orderID); err != nil {
+        span.SetError(err)
+        return err
+    }
+
+    return nil
+}
+```
+
+### 不需要创建 Span 的场景
+
+- ❌ 只是简单传递 trace_id 给下游
+- ❌ 操作太简单（如数据转换、字段映射）
+- ❌ 只想保证日志中有 trace_id（已自动实现）
+- ❌ 透传操作（中间层、代理层）
+
+```go
+// 示例：简单透传，不需要创建 Span
+func handleMessage(ctx context.Context, msg *Message) error {
+    // 不创建 Span，直接传递 ctx 给下游
+    // 下游会创建自己的 Span（如 HTTP 调用、数据库查询）
+    return callDownstreamService(ctx, msg)
+}
+```
+
+### 实际应用示例
+
+**场景1：Kafka 消费者 - 需要创建 Span**
+```go
+func consumeMessage(msg *sarama.ConsumerMessage) error {
+    // 提取 trace_id
+    ctx := saramatracer.CreateKafkaConsumerContext(msg)
+
+    // 创建 Span - 因为消费消息是重要操作，需要追踪
+    span, ctx := zltrace.GetSafeTracer().StartSpan(ctx, "ConsumeMessage")
+    defer span.Finish()
+
+    span.SetTag("kafka.topic", msg.Topic)
+    span.SetTag("kafka.partition", msg.Partition)
+
+    return processMessage(ctx, msg)
+}
+```
+
+**场景2：HTTP 透传 - 不需要创建 Span**
+```go
+func proxyRequest(ctx context.Context, req *http.Request) error {
+    // 不创建 Span - 只是透传请求
+    // HTTP Client 会自动创建 Span
+    client := httpadapter.NewTracedClient(nil)
+    resp, err := client.Do(req.WithContext(ctx))
+    return err
+}
+```
+
+**场景3：复杂业务 - 关键操作创建 Span**
+```go
+func ProcessOrder(ctx context.Context, orderID string) error {
+    // 创建 Span - 这是关键业务操作
+    span, ctx := zltrace.GetSafeTracer().StartSpan(ctx, "ProcessOrder")
+    defer span.Finish()
+
+    // 简单操作，不创建 Span
+    order := parseOrder(orderID)
+
+    // 关键操作，创建 Span
+    if err := validateOrder(ctx, order); err != nil {
+        span.SetError(err)
+        return err
+    }
+
+    // 关键操作，创建 Span
+    if err := saveToDatabase(ctx, order); err != nil {
+        span.SetError(err)
+        return err
+    }
+
+    return nil
+}
+```
+
+### 判断标准
+
+| 问题 | 是 → 创建 Span | 否 → 不创建 |
+|------|--------------|-----------|
+| 是否是关键业务操作？ | ✅ | ❌ |
+| 需要了解这个操作的耗时吗？ | ✅ | ❌ |
+| 需要记录业务标签吗？ | ✅ | ❌ |
+| 需要在追踪系统看到这个节点吗？ | ✅ | ❌ |
+| 只是传递 trace_id？ | ❌ | ✅ |
+
+### 记住
+
+**Context 本身就携带 trace_id，创建 Span 是为了"记录"操作。** 如果只是传递 trace_id，不需要创建 Span。
+
+```go
+// HTTP Handler
+func Handler(c *gin.Context) {
+    ctx := c.Request.Context()
+    ProcessOrder(ctx, orderID)
+}
+
+// 业务函数
+func ProcessOrder(ctx context.Context, orderID string) error {
+    span, ctx := zltrace.GetSafeTracer().StartSpan(ctx, "ProcessOrder")
+    defer span.Finish()
+    // ...
+}
+```
+
+### ❌ 避免：不接收 context
+
+```go
+func ProcessOrder(orderID string) error {
+    // trace_id 链中断！
+}
+```
+
+## 3. Span 命名规范
 
 ### ✅ 推荐：清晰的命名
 
@@ -53,7 +195,7 @@ zltrace.GetSafeTracer().StartSpan(ctx, "handle")
 - Kafka 操作：`Kafka/Produce/{topic}`、`Kafka/Consume/{topic}`
 - 数据库操作：`DB/Query/{table}`、`DB/Insert/{table}`
 
-## 3. 标签使用规范
+## 4. 标签使用规范
 
 ### ✅ 推荐：结构化标签
 
@@ -84,7 +226,7 @@ span.SetTag("cache.hit", true)
 span.SetTag("http.status_code", 200)
 ```
 
-## 4. 错误处理规范
+## 5. 错误处理规范
 
 ### ✅ 推荐：记录错误到 span
 
@@ -105,7 +247,7 @@ if err := doSomething(); err != nil {
 }
 ```
 
-## 5. 采样策略
+## 6. 采样策略
 
 ### 开发环境
 
@@ -132,7 +274,7 @@ trace:
     type: parent_based  # 基于父 span 决定
 ```
 
-## 6. Exporter 选择
+## 7. Exporter 选择
 
 ### 开发环境
 
@@ -160,7 +302,7 @@ trace:
     type: none  # 不发送数据，仅生成 trace_id
 ```
 
-## 7. 性能优化
+## 8. 性能优化
 
 ### 使用采样器
 
@@ -195,7 +337,7 @@ trace:
     max_queue_size: 8192
 ```
 
-## 8. 安全建议
+## 9. 安全建议
 
 ### 生产环境配置
 
@@ -220,7 +362,7 @@ span.SetTag("user.id", userID)
 span.SetTag("auth.method", "jwt")
 ```
 
-## 9. 日志集成
+## 10. 日志集成
 
 ### ✅ 推荐：使用 zllog
 
@@ -240,7 +382,7 @@ traceID := span.TraceID()
 log.WithField("trace_id", traceID).Info("message")
 ```
 
-## 10. 优雅降级
+## 11. 优雅降级
 
 ### ✅ 推荐：使用 GetSafeTracer
 
@@ -259,7 +401,7 @@ if tracer != nil {  // 需要手动检查 nil
 }
 ```
 
-## 11. Kafka 消息处理
+## 12. Kafka 消息处理
 
 ### ✅ 推荐：立即提取 trace_id
 
@@ -285,7 +427,7 @@ func ConsumeMessage(msg *sarama.ConsumerMessage) error {
 }
 ```
 
-## 12. HTTP Client 调用
+## 13. HTTP Client 调用
 
 ### ✅ 推荐：使用 TracedClient
 
@@ -304,7 +446,7 @@ req.Header.Set("traceparent", traceparent)
 client.Do(req)
 ```
 
-## 13. 测试策略
+## 14. 测试策略
 
 ### 单元测试
 
@@ -332,7 +474,7 @@ trace:
     type: none  # 不发送实际数据
 ```
 
-## 14. 监控和告警
+## 15. 监控和告警
 
 ### 关键指标
 
@@ -353,7 +495,7 @@ trace:
   expr: span_queue_size > 10000
 ```
 
-## 15. 版本管理
+## 16. 版本管理
 
 ### API 稳定性
 

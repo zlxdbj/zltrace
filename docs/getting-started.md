@@ -120,6 +120,7 @@ func consumeMessage(msg *sarama.ConsumerMessage) error {
     ctx := saramatracer.CreateKafkaConsumerContext(msg)
 
     // 后续操作都继承这个 trace_id
+    // 注意：创建 Span 是可选的，见 FAQ "是否必须创建 Span？"
     return processMessage(ctx, msg)
 }
 ```
