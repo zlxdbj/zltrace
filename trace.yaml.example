@@ -1,0 +1,46 @@
+# ========== 追踪系统配置（独立配置文件） ==========
+# 文件名：trace.yaml
+# 位置：项目根目录或 resource/ 目录
+
+# 是否启用追踪（总开关）
+enabled: true
+
+# 服务名称（用于追踪系统中标识本服务）
+# 优先级：此配置 > 环境变量 SERVICE_NAME > 自动检测
+service_name: my_service
+
+# 采样配置
+sampler:
+  # 采样类型: always_on, never, traceid_ratio, parent_based
+  type: always_on
+  # 采样比率（0.0 - 1.0），仅当 type=traceid_ratio 时生效
+  ratio: 1.0
+
+# Exporter 配置（决定追踪数据发送到哪里）
+exporter:
+  # 导出类型: otlp, stdout, none
+  # - otlp: 发送到追踪系统（SkyWalking、Jaeger 等）
+  # - stdout: 输出到日志（降级模式，不发送到追踪系统）
+  # - none: 不发送追踪数据（只生成 trace_id）
+  type: stdout
+
+  # OTLP gRPC 配置（type=otlp 时生效）
+  otlp:
+    # SkyWalking OAP 服务地址
+    endpoint: localhost:4317
+    # 连接超时时间（秒）
+    timeout: 10
+    # 是否使用 insecure 连接（开发环境）
+    insecure: true
+
+  # 最大队列大小
+  max_queue_size: 2048
+
+# 批量处理配置
+batch:
+  # 批量发送的最大 span 数量
+  batch_size: 512
+  # 批量发送的超时时间（秒）
+  timeout: 5
+  # 最大队列大小
+  max_queue_size: 2048
