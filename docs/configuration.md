@@ -51,12 +51,17 @@ batch:
 ### 使用方式
 
 ```go
-import "github.com/zlxdbj/zltrace"
+import (
+    "context"
+    "github.com/zlxdbj/zllog"
+    "github.com/zlxdbj/zltrace"
+)
 
 func main() {
     // 自动从 trace.yaml 加载配置
     if err := zltrace.InitTracer(); err != nil {
-        panic(err)
+        zllog.Error(context.Background(), "init", "追踪系统初始化失败", err)
+        // 追踪系统初始化失败不影响业务运行，程序可以继续
     }
 
     // 使用 zltrace...
@@ -131,7 +136,11 @@ trace:
 如果需要自定义配置加载行为：
 
 ```go
-import "github.com/zlxdbj/zltrace"
+import (
+    "context"
+    "github.com/zlxdbj/zllog"
+    "github.com/zlxdbj/zltrace"
+)
 
 func main() {
     // 创建配置加载器
@@ -146,12 +155,12 @@ func main() {
     // 加载配置
     config, err := loader.Load()
     if err != nil {
-        panic(err)
+        zllog.Error(context.Background(), "config", "加载追踪配置失败", err)
     }
 
     // 使用配置初始化
     if err := zltrace.InitTracer(); err != nil {
-        panic(err)
+        zllog.Error(context.Background(), "init", "追踪系统初始化失败", err)
     }
 }
 ```
@@ -207,7 +216,11 @@ export ZLTRACE_CONFIG=/path/to/custom-trace.yaml
 如果项目已经使用 Viper 加载了配置，zltrace 也能从中读取：
 
 ```go
-import "github.com/zlxdbj/zltrace"
+import (
+    "context"
+    "github.com/zlxdbj/zllog"
+    "github.com/zlxdbj/zltrace"
+)
 
 func main() {
     // 项目先加载自己的配置
@@ -216,7 +229,7 @@ func main() {
 
     // zltrace 会尝试从全局 Viper 中读取 trace 配置
     if err := zltrace.InitTracer(); err != nil {
-        panic(err)
+        zllog.Error(context.Background(), "init", "追踪系统初始化失败", err)
     }
 }
 ```

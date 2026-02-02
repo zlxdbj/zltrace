@@ -116,6 +116,7 @@ func InitOpenTelemetryTracer() error {
 	// 1. 读取配置
 	config, err := LoadConfig()
 	if err != nil {
+		zllog.Error(context.Background(), "trace.init", "读取追踪配置失败", err)
 		return fmt.Errorf("读取追踪配置失败: %w", err)
 	}
 
@@ -127,12 +128,14 @@ func InitOpenTelemetryTracer() error {
 	// 2. 创建 Resource
 	res, err := createResource(config.ServiceName)
 	if err != nil {
+		zllog.Error(context.Background(), "trace.init", "创建 OpenTelemetry Resource 失败", err)
 		return fmt.Errorf("创建 OpenTelemetry Resource 失败: %w", err)
 	}
 
 	// 3. 创建 Exporter（根据 type 决定）
 	exporter, err := createExporterByType(config)
 	if err != nil {
+		zllog.Error(context.Background(), "trace.init", "创建 OpenTelemetry Exporter 失败", err)
 		return fmt.Errorf("创建 OpenTelemetry Exporter 失败: %w", err)
 	}
 

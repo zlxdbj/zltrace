@@ -72,7 +72,8 @@ func InitTracer() error
 **示例**：
 ```go
 if err := zltrace.InitTracer(); err != nil {
-    panic(err)
+    zllog.Error(context.Background(), "init", "追踪系统初始化失败", err)
+    // 追踪系统初始化失败不影响业务运行，程序可以继续
 }
 ```
 

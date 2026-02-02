@@ -20,7 +20,9 @@ import (
 // 使用示例：
 //
 //	if err := zltrace.Init(); err != nil {
-//	    panic("初始化追踪系统失败: " + err.Error())
+//	    zllog.Error(context.Background(), "init", "追踪系统初始化失败",
+//	        zllog.Error(err))
+//	    // 追踪系统初始化失败不影响业务运行，程序可以继续
 //	}
 //
 // **配置决定行为**：
@@ -42,7 +44,9 @@ func Init() error {
 // 使用示例：
 //
 //	if err := zltrace.InitTracer(); err != nil {
-//	    panic("初始化追踪系统失败: " + err.Error())
+//	    zllog.Error(context.Background(), "init", "追踪系统初始化失败",
+//	        zllog.Error(err))
+//	    // 追踪系统初始化失败不影响业务运行，程序可以继续
 //	}
 //
 // **配置决定行为**：
@@ -54,6 +58,7 @@ func InitTracer() error {
 	// 1. 加载配置
 	config, err := LoadConfig()
 	if err != nil {
+		zllog.Error(context.Background(), "zltrace.init", "加载追踪配置失败", err)
 		return fmt.Errorf("failed to load trace config: %w", err)
 	}
 
@@ -65,6 +70,7 @@ func InitTracer() error {
 
 	// 3. 初始化 OpenTelemetry Tracer
 	if err := InitOpenTelemetryTracer(); err != nil {
+		zllog.Error(context.Background(), "zltrace.init", "初始化 OpenTelemetry 追踪器失败", err)
 		return fmt.Errorf("failed to init OpenTelemetry tracer: %w", err)
 	}
 

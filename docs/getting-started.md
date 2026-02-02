@@ -43,6 +43,7 @@ trace:
 package main
 
 import (
+    "context"
     "github.com/zlxdbj/zllog"
     "github.com/zlxdbj/zltrace"
 )
@@ -50,12 +51,13 @@ import (
 func main() {
     // 1. 初始化日志系统
     if err := zllog.InitLogger(); err != nil {
-        panic(err)
+        zllog.Error(context.Background(), "init", "日志系统初始化失败", err)
     }
 
     // 2. 初始化追踪系统
     if err := zltrace.InitTracer(); err != nil {
-        panic(err)
+        zllog.Error(context.Background(), "init", "追踪系统初始化失败", err)
+        // 追踪系统初始化失败不影响业务运行，程序可以继续
     }
     defer zltrace.GetTracer().Close()
 

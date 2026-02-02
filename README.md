@@ -37,16 +37,22 @@ cp zltrace.yaml.example zltrace.yaml
 package main
 
 import (
+    "context"
     "github.com/zlxdbj/zllog"
     "github.com/zlxdbj/zltrace"
 )
 
 func main() {
     // 初始化日志系统
-    zllog.InitLogger()
+    if err := zllog.InitLogger(); err != nil {
+        zllog.Error(context.Background(), "init", "日志系统初始化失败", err)
+    }
 
     // 初始化追踪系统
-    zltrace.InitTracer()
+    if err := zltrace.InitTracer(); err != nil {
+        zllog.Error(context.Background(), "init", "追踪系统初始化失败", err)
+        // 追踪系统初始化失败不影响业务运行，程序可以继续
+    }
     defer zltrace.GetTracer().Close()
 
     // 你的业务代码...

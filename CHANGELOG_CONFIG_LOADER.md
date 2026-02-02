@@ -124,12 +124,12 @@ loader.SetEnv("production")
 
 config, err := loader.Load()
 if err != nil {
-    panic(err)
+    zllog.Error(context.Background(), "config", "加载追踪配置失败", err)
 }
 
 // 使用配置
 if err := zltrace.InitTracer(); err != nil {
-    panic(err)
+    zllog.Error(context.Background(), "init", "追踪系统初始化失败", err)
 }
 ```
 
