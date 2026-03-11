@@ -355,7 +355,7 @@ func (l *ConfigLoader) getDefaultConfig() *TraceConfig {
 			Ratio: 1.0,
 		},
 		Exporter: ExporterConfig{
-			Type:        "stdout", // 默认输出到日志（降级模式）
+			Type:        "none", // 默认不导出追踪数据，只生成 trace_id（零开销）
 			MaxQueueSize: 2048,
 			OTLP: OTLPConfig{
 				Endpoint: "localhost:4317",
@@ -392,7 +392,7 @@ func LoadConfigLegacy() (*TraceConfig, error) {
 			Ratio: 1.0,
 		},
 		Exporter: ExporterConfig{
-			Type: "stdout", // 默认输出到日志（降级模式）
+			Type: "none", // 默认不导出追踪数据，只生成 trace_id（零开销）
 			OTLP: OTLPConfig{
 				Endpoint: "localhost:4317",
 				Timeout:  10,
@@ -578,8 +578,8 @@ exporter:
   # 导出类型: otlp, stdout, none
   # - otlp: 发送到追踪系统（SkyWalking、Jaeger 等）
   # - stdout: 输出到日志（降级模式，不发送到追踪系统）
-  # - none: 不发送追踪数据（只生成 trace_id）
-  type: stdout
+  # - none: 不发送追踪数据（只生成 trace_id，零开销）
+  type: none
 
   # OTLP gRPC 配置（type=otlp 时生效）
   otlp:
@@ -632,8 +632,8 @@ trace:
     # 导出类型: otlp, stdout, none
     # - otlp: 发送到追踪系统（SkyWalking、Jaeger 等）
     # - stdout: 输出到日志（降级模式，不发送到追踪系统）
-    # - none: 不发送追踪数据（只生成 trace_id）
-    type: stdout
+    # - none: 不发送追踪数据（只生成 trace_id，零开销）
+    type: none
 
     # OTLP gRPC 配置（type=otlp 时生效）
     otlp:

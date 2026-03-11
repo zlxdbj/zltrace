@@ -140,18 +140,31 @@ func InitOpenTelemetryTracer() error {
 	}
 
 	// 4. 创建采样器
-	sampler := createSampler(config.Sampler)
+	// 如果 exporter.type 为 none，强制使用 NeverSample，避免创建无用的 span
+	var sampler sdktrace.Sampler
+	if config.Exporter.Type == "none" {
+		sampler = sdktrace.NeverSample()
+	} else {
+		sampler = createSampler(config.Sampler)
+	}
 
 	// 5. 创建 TracerProvider
 	var tpOpts []sdktrace.TracerProviderOption
 	if exporter != nil {
-		// 只有当 exporter 不是 none 时才添加 Batcher
-		tpOpts = append(tpOpts,
-			sdktrace.WithBatcher(exporter,
-				sdktrace.WithBatchTimeout(time.Duration(config.Batch.Timeout)*time.Second),
-				sdktrace.WithMaxQueueSize(config.Batch.MaxQueueSize),
-			),
-		)
+		// 根据 exporter 类型选择不同的处理方式
+		if config.Exporter.Type == "stdout" {
+			// stdout 使用同步导出，避免后台 goroutine 开销
+			// span 结束时立即输出日志，不会消耗额外 CPU
+			tpOpts = append(tpOpts, sdktrace.WithSyncer(exporter))
+		} else {
+			// otlp 使用批量导出，提高网络传输效率
+			tpOpts = append(tpOpts,
+				sdktrace.WithBatcher(exporter,
+					sdktrace.WithBatchTimeout(time.Duration(config.Batch.Timeout)*time.Second),
+					sdktrace.WithMaxQueueSize(config.Batch.MaxQueueSize),
+				),
+			)
+		}
 	}
 	tpOpts = append(tpOpts,
 		sdktrace.WithSampler(sampler),
