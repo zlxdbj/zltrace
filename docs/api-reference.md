@@ -133,32 +133,6 @@ func GetSafeTracer() Tracer
 
 **建议**：优先使用此方法，避免 nil pointer 错误
 
-## Context 辅助函数
-
-### SpanFromContext()
-
-从 context 中获取 span。
-
-```go
-func SpanFromContext(ctx context.Context) Span
-```
-
-**示例**：
-```go
-span := zltrace.SpanFromContext(ctx)
-if span != nil {
-    traceID := span.TraceID()
-}
-```
-
-### ContextWithSpan()
-
-将 span 添加到 context。
-
-```go
-func ContextWithSpan(ctx context.Context, span Span) context.Context
-```
-
 ## HTTP 追踪
 
 ### TraceHTTPRequest()

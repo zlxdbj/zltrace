@@ -374,12 +374,12 @@ zllog.Info(ctx, "module", "message",
 // {"trace_id": "abc123...", "module": "module", "key": "value"}
 ```
 
-### ❌ 避免：手动传递 trace_id
+### ❌ 避免：手动获取 trace_id
 
 ```go
-span := zltrace.SpanFromContext(ctx)
-traceID := span.TraceID()
-log.WithField("trace_id", traceID).Info("message")
+// 不需要手动获取 trace_id，zllog 会自动从 context 中提取
+// traceID := ... 手动获取
+// log.WithField("trace_id", traceID).Info("message")
 ```
 
 ## 11. 优雅降级

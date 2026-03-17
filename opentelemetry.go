@@ -226,17 +226,15 @@ type OTELProvider struct {
 }
 
 // GetTraceID 从 context 中提取 trace_id（实现 zllog.TraceIDProvider 接口）
+// 直接使用 OpenTelemetry SDK 的 SpanFromContext，而不是 zltrace 自己的 SpanFromContext
 func (p *OTELProvider) GetTraceID(ctx context.Context) string {
-	span := SpanFromContext(ctx)
-	if span == nil {
+	// 使用 OpenTelemetry SDK 从 context 中获取 span
+	span := trace.SpanFromContext(ctx)
+	if !span.SpanContext().IsValid() {
 		return ""
 	}
 
-	if otelSpan, ok := span.(*OTELSpan); ok {
-		return otelSpan.TraceID()
-	}
-
-	return ""
+	return span.SpanContext().TraceID().String()
 }
 
 // Name 返回追踪系统名称（实现 zllog.TraceIDProvider 接口）

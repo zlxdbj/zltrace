@@ -37,23 +37,12 @@ func TestGetSafeTracer(t *testing.T) {
 	tracer.Close()
 }
 
-func TestContextWithSpan(t *testing.T) {
-	span := &mockSpan{}
-	ctx := context.Background()
-	ctx = ContextWithSpan(ctx, span)
-
-	retrievedSpan := SpanFromContext(ctx)
-	if retrievedSpan != span {
-		t.Error("failed to retrieve span from context")
-	}
-}
-
 // mockTracer 用于测试
 type mockTracer struct{}
 
 func (m *mockTracer) StartSpan(ctx context.Context, operationName string) (Span, context.Context) {
 	span := &mockSpan{}
-	return span, ContextWithSpan(ctx, span)
+	return span, ctx
 }
 
 func (m *mockTracer) Inject(ctx context.Context, carrier Carrier) error {

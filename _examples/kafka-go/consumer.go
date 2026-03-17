@@ -95,8 +95,8 @@ func handleMessage(msg *kafka.Message) error {
 		zllog.String("topic", msg.Topic),
 		zllog.Int("partition", msg.Partition),
 		zllog.Int64("offset", msg.Offset),
-		zllog.Int("bytes", len(msg.Value)),
-		zllog.String("trace_id", getTraceID(ctx)))
+		zllog.Int("bytes", len(msg.Value)))
+	// trace_id 会由 zllog 自动从 context 中提取并记录
 
 	// 处理消息内容...
 	return processMessage(ctx, msg)
@@ -116,13 +116,4 @@ func processMessage(ctx context.Context, msg *kafka.Message) error {
 		zllog.String("value", string(msg.Value)))
 
 	return nil
-}
-
-// getTraceID 从 context 获取 trace_id（用于演示）
-func getTraceID(ctx context.Context) string {
-	span := zltrace.SpanFromContext(ctx)
-	if span != nil {
-		return span.TraceID()
-	}
-	return ""
 }

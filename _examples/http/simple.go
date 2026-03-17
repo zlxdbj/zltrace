@@ -118,18 +118,9 @@ func fetchUserFromService(ctx context.Context, userID string) (map[string]interf
 
 	// 解析响应...
 	return map[string]interface{}{
-		"id":       userID,
-		"name":     "Test User",
-		"email":    "test@example.com",
-		"trace_id": getTraceID(ctx),
+		"id":    userID,
+		"name":  "Test User",
+		"email": "test@example.com",
+		// trace_id 会由 zllog 自动从 context 中提取并记录
 	}, nil
-}
-
-// getTraceID 从 context 获取 trace_id（用于演示）
-func getTraceID(ctx context.Context) string {
-	span := zltrace.SpanFromContext(ctx)
-	if span != nil {
-		return span.TraceID()
-	}
-	return ""
 }

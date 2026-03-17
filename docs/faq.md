@@ -197,11 +197,12 @@ type OTELProvider struct {
 }
 
 func (p *OTELProvider) GetTraceID(ctx context.Context) string {
-    span := SpanFromContext(ctx)
-    if span == nil {
+    // 使用 OpenTelemetry SDK 从 context 中获取 span
+    span := trace.SpanFromContext(ctx)
+    if !span.SpanContext().IsValid() {
         return ""
     }
-    return span.TraceID()
+    return span.SpanContext().TraceID().String()
 }
 
 // 2. 注册到 zllog（zltrace.InitTracer() 自动完成）
