@@ -47,7 +47,7 @@ type ExporterConfig struct {
 // OTLPConfig OTLP gRPC 配置
 type OTLPConfig struct {
 	Endpoint string        `mapstructure:"endpoint"`
-	Timeout  int           `mapstructure:"timeout"`
+	Timeout  string        `mapstructure:"timeout"` // 支持 Go duration 格式，如 "10s"、"500ms"
 	Insecure bool          `mapstructure:"insecure"`
 }
 
@@ -254,7 +254,7 @@ func (l *ConfigLoader) parseTraceConfig(v *viper.Viper) (*TraceConfig, error) {
 		config.Exporter.OTLP.Endpoint = v.GetString("exporter.otlp.endpoint")
 	}
 	if v.IsSet("exporter.otlp.timeout") {
-		config.Exporter.OTLP.Timeout = v.GetInt("exporter.otlp.timeout")
+		config.Exporter.OTLP.Timeout = v.GetString("exporter.otlp.timeout")
 	}
 	if v.IsSet("exporter.otlp.insecure") {
 		config.Exporter.OTLP.Insecure = v.GetBool("exporter.otlp.insecure")
@@ -318,7 +318,7 @@ func (l *ConfigLoader) parseAppTraceConfig(v *viper.Viper) (*TraceConfig, error)
 		config.Exporter.OTLP.Endpoint = v.GetString("trace.exporter.otlp.endpoint")
 	}
 	if v.IsSet("trace.exporter.otlp.timeout") {
-		config.Exporter.OTLP.Timeout = v.GetInt("trace.exporter.otlp.timeout")
+		config.Exporter.OTLP.Timeout = v.GetString("trace.exporter.otlp.timeout")
 	}
 	if v.IsSet("trace.exporter.otlp.insecure") {
 		config.Exporter.OTLP.Insecure = v.GetBool("trace.exporter.otlp.insecure")
@@ -359,7 +359,7 @@ func (l *ConfigLoader) getDefaultConfig() *TraceConfig {
 			MaxQueueSize: 2048,
 			OTLP: OTLPConfig{
 				Endpoint: "localhost:4317",
-				Timeout:  10,
+				Timeout:  "10s",
 				Insecure: true,
 			},
 		},
@@ -395,7 +395,7 @@ func LoadConfigLegacy() (*TraceConfig, error) {
 			Type: "none", // 默认不导出追踪数据，只生成 trace_id（零开销）
 			OTLP: OTLPConfig{
 				Endpoint: "localhost:4317",
-				Timeout:  10,
+				Timeout:  "10s",
 				Insecure: true,
 			},
 			MaxQueueSize: 2048,
@@ -463,8 +463,8 @@ func LoadConfigLegacy() (*TraceConfig, error) {
 	if config.Exporter.OTLP.Endpoint == "" {
 		config.Exporter.OTLP.Endpoint = "localhost:4317"
 	}
-	if config.Exporter.OTLP.Timeout == 0 {
-		config.Exporter.OTLP.Timeout = 10
+	if config.Exporter.OTLP.Timeout == "" {
+		config.Exporter.OTLP.Timeout = "10s"
 	}
 
 	// 4. 验证配置
@@ -585,8 +585,8 @@ exporter:
   otlp:
     # SkyWalking OAP 服务地址
     endpoint: localhost:4317
-    # 连接超时时间（秒）
-    timeout: 10
+    # 连接超时时间（支持 Go duration 格式，如 "10s"、"500ms"、"1m"）
+    timeout: 10s
     # 是否使用 insecure 连接（开发环境）
     insecure: true
 
@@ -639,8 +639,8 @@ trace:
     otlp:
       # SkyWalking OAP 服务地址
       endpoint: localhost:4317
-      # 连接超时时间（秒）
-      timeout: 10
+      # 连接超时时间（支持 Go duration 格式，如 "10s"、"500ms"、"1m"）
+      timeout: 10s
       # 是否使用 insecure 连接（开发环境）
       insecure: true
 

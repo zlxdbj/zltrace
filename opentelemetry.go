@@ -303,7 +303,18 @@ func createExporterByType(config *TraceConfig) (sdktrace.SpanExporter, error) {
 
 // createOTLPExporter 创建 OTLP gRPC Exporter
 func createOTLPExporter(config *TraceConfig) (sdktrace.SpanExporter, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(config.Exporter.OTLP.Timeout)*time.Second)
+	timeout, err := time.ParseDuration(config.Exporter.OTLP.Timeout)
+	if err != nil {
+		// 向后兼容：如果解析失败，尝试作为纯数字（秒数）处理
+		var sec int
+		if _, err := fmt.Sscanf(config.Exporter.OTLP.Timeout, "%d", &sec); err == nil {
+			timeout = time.Duration(sec) * time.Second
+		} else {
+			return nil, fmt.Errorf("无效的 OTLP timeout 格式 %q: %w", config.Exporter.OTLP.Timeout, err)
+		}
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
 	var opts []otlptracegrpc.Option
