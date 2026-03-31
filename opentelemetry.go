@@ -2,6 +2,7 @@ package zltrace
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
 	"time"
 
@@ -212,6 +213,64 @@ func SetGlobalPropagators() {
 	otel.SetTextMapPropagator(propagator)
 
 	zllog.Info(context.Background(), "trace", "全局传播器已设置为 W3C Trace Context")
+}
+
+// ============================================================================
+// NewContextWithTraceID - 从 trace_id 字符串手动构建 context
+// ============================================================================
+
+// NewContextWithTraceID 根据 trace_id 字符串创建一个全新的 context
+//
+// 适用场景：定时任务、异步处理等没有上游 context 的场景，
+// 需要从数据库、消息等外部存储中读取之前保存的 trace_id，
+// 让后续的 zllog 日志和 span 都归属到同一个 trace 链路下。
+//
+// 使用示例：
+//
+//	// 从数据库查询出之前保存的 trace_id
+//	traceID := record.TraceID
+//
+//	// 创建带 trace_id 的 context
+//	ctx := zltrace.NewContextWithTraceID(traceID)
+//
+//	// 后续所有日志都会自动带上这个 trace_id
+//	zllog.Info(ctx, "scheduled_task", "开始处理数据")
+//
+//	// 也可以基于这个 context 创建 span
+//	span, spanCtx := zltrace.GetSafeTracer().StartSpan(ctx, "ScheduledTask/Process")
+//	defer span.Finish()
+//	zllog.Info(spanCtx, "scheduled_task", "处理完成")
+func NewContextWithTraceID(traceID string) context.Context {
+	return ContextWithTraceID(context.Background(), traceID)
+}
+
+// ContextWithTraceID 将指定的 trace_id 注入到已有的 context 中
+//
+// 与 NewContextWithTraceID 的区别：此函数保留 ctx 中原有的超时、取消信号等控制信息。
+// 如果没有需要保留的 context 控制信息，直接使用 NewContextWithTraceID(traceID) 更简洁。
+func ContextWithTraceID(ctx context.Context, traceID string) context.Context {
+	// 解析 trace_id（W3C 格式，32位十六进制字符串）
+	tid, err := trace.TraceIDFromHex(traceID)
+	if err != nil {
+		// trace_id 格式无效，返回原始 context
+		return ctx
+	}
+
+	// 生成新的 span_id
+	var sid trace.SpanID
+	if _, err := rand.Read(sid[:]); err != nil {
+		return ctx
+	}
+
+	// 构建 span context 并注入到 context
+	sc := trace.NewSpanContext(trace.SpanContextConfig{
+		TraceID:    tid,
+		SpanID:     sid,
+		TraceFlags: trace.FlagsSampled,
+		Remote:     true, // 标记为远程 trace（来自上游）
+	})
+
+	return trace.ContextWithSpanContext(ctx, sc)
 }
 
 // ============================================================================
