@@ -273,6 +273,24 @@ func ContextWithTraceID(ctx context.Context, traceID string) context.Context {
 	return trace.ContextWithSpanContext(ctx, sc)
 }
 
+// TraceIDFromContext 从 context 中提取 trace_id 字符串
+//
+// 如果 context 中没有 trace 信息，返回空字符串。
+//
+// 使用示例：
+//
+//	func dealWithMessage(ctx context.Context) {
+//	    traceID := zltrace.TraceIDFromContext(ctx)
+//	    // 存库、打日志、传下游...
+//	}
+func TraceIDFromContext(ctx context.Context) string {
+	span := trace.SpanFromContext(ctx)
+	if !span.SpanContext().IsValid() {
+		return ""
+	}
+	return span.SpanContext().TraceID().String()
+}
+
 // ============================================================================
 // OTELProvider - TraceIDProvider 实现（用于注册到 zllog）
 // ============================================================================
